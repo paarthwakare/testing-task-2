@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Earth Rotating on its Axis</title>
+  <style>
+    html, body {
+      margin: 0;
+      height: 100%;
+      overflow: hidden;
+      background: radial-gradient(1200px 800px at 70% 30%, #0b1a3a 0%, #020611 45%, #000 100%);
+      color: #e8f0ff;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+    }
+    #app {
+      position: fixed;
+      inset: 0;
+    }
+    canvas {
+      display: block;
+    }
+    .ui {
+      position: fixed;
+      left: 16px;
+      top: 16px;
+      background: rgba(6, 12, 24, 0.6);
+      border: 1px solid rgba(255,255,255,0.08);
+      backdrop-filter: blur(6px);
+      padding: 12px 14px;
+      border-radius: 12px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+      max-width: min(90vw, 460px);
+    }
+    .title {
+      font-weight: 700;
+      letter-spacing: 0.2px;
+      margin: 0 0 6px 0;
+      font-size: 18px;
+      line-height: 1.2;
+    }
+    .subtitle {
+      opacity: 0.8;
+      font-size: 12px;
+      margin-bottom: 10px;
+    }
+    .row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 8px 0;
+      flex-wrap: wrap;
+    }
+    .row label {
+      font-size: 12px;
+      opacity: 0.9;
+      min-width: 85px;
+    }
+    input[type="range"] {
+      flex: 1;
+      appearance: none;
+      height: 6px;
+      border-radius: 4px;
+      background: rgba(255,255,255,0.15);
+      outline: none;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #6cb8ff;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+      cursor: pointer;
+      border: 2px solid #e8f0ff;
+    }
+    .pill {
+      font-size: 12px;
+      padding: 2px 8px;
+      background: rgba(108, 184, 255, 0.15);
+      color: #bfe0ff;
+      border: 1px solid rgba(108, 184, 255, 0.35);
+      border-radius: 999px;
+    }
+    .btn {
+      font-size: 12px;
+      padding: 6px 10px;
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.06);
+      color: #e8f0ff;
+      cursor: pointer;
+      transition: background 0.15s ease;
+    }
+    .btn:hover { background: rgba(255,255,255,0.12); }
+    .legend {
+      font-size: 11px;
+      opacity: 0.8;
+      margin-top: 6px;
+      line-height: 1.35;
+    }
+    .footer {
+      position: fixed;
+      right: 16px;
+      bottom: 12px;
+      opacity: 0.75;
+      font-size: 11px;
+      user-select: none;
+    }
+    .link {
+      color: #a8d3ff;
+      text-decoration: none;
+      border-bottom: 1px dashed rgba(168,211,255,0.5);
+    }
+    .link:hover { color: #d8ebff; }
+    .mobile-hint {
+      font-size: 11px;
+      opacity: 0.8;
+    }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+
+  <div class="ui">
+    <div class="title">Earth: Rotation on Its Axis <span class="pill">23.5° tilt</span></div>
+    <div class="subtitle">Drag to orbit. Scroll to zoom. Clouds and specular reflections included.</div>
+
+    <div class="row">
+      <label for="speed">Rotation speed</label>
+      <input id="speed" type="range" min="0" max="3" step="0.01" value="1" />
+      <span id="speedVal" class="pill">1.0x</span>
+    </div>
+
+    <div class="row">
+      <button id="toggle" class="btn">Pause</button>
+      <button id="resetView" class="btn">Reset View</button>
+    </div>
+    <div class="legend">
+      Sidereal day ~23h56m. Default 1.0x approximates real-time rotation scaled for visualization.
+      <div class="mobile-hint">Tip: On touch devices, pinch to zoom and drag to rotate.</div>
+    </div>
+  </div>
+
+  <div class="footer">
+    Textures: threejs.org examples (derived from NASA Visible Earth)
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/three@0.160/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.160/examples/js/controls/OrbitControls.js"></script>
+  <script>
+    (() => {
+      const app = document.getElementById('app');
+
+      // Renderer
+      const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+      app.appendChild(renderer.domElement);
+
+      // Scene and Camera
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 2000);
+      camera.position.set(0, 1.2, 6);
+
+      // Controls
+      const controls = new THREE.OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.05;
+      controls.rotateSpeed = 0.5;
+      controls.minDistance = 3;
+      controls.maxDistance = 12;
+
+      // Lighting
+      const ambient = new THREE.AmbientLight(0x334466, 0.6);
+      scene.add(ambient);
+
+      const sunLight = new THREE.DirectionalLight(0xffffff, 1.2);
+      sunLight.position.set(-8, 4, 5);
+      sunLight.castShadow = false;
+      scene.add(sunLight);
+
+      // Star field
+      function createStarField() {
+        const starCount = 2000;
+        const geometry = new THREE.BufferGeometry();
+        const positions = new Float32Array(starCount * 3);
+        const colors = new Float32Array(starCount * 3);
+
+        for (let i = 0; i < starCount; i++) {
+          // Distribute stars in a hollow sphere
+          const r = THREE.MathUtils.randFloat(60, 120);
+          const theta = Math.acos(THREE.MathUtils.randFloatSpread(2)); // 0..PI
+          const phi = THREE.MathUtils.randFloat(0, Math.PI * 2);
+
+          const x = r * Math.sin(theta) * Math.cos(phi);
+          const y = r * Math.cos(theta);
+          const z = r * Math.sin(theta) * Math.sin(phi);
+
+          const idx = i * 3;
+          positions[idx] = x;
+          positions[idx + 1] = y;
+          positions[idx + 2] = z;
+
+          const twinkle = THREE.MathUtils.randFloat(0.8, 1);
+          colors[idx] = 0.8 * twinkle;
+          colors[idx + 1] = 0.9 * twinkle;
+          colors[idx + 2] = 1.0 * twinkle;
+        }
+
+        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+        const material = new THREE.PointsMaterial({
+          size: 0.4,
+          sizeAttenuation: true,
+          vertexColors: true,
+          transparent: true,
+          opacity: 0.9
+        });
+
+        const points = new THREE.Points(geometry, material);
+        scene.add(points);
+        return points;
+      }
+      createStarField();
+
+      // Earth group (to apply axial tilt)
+      const earthGroup = new THREE.Group();
+      scene.add(earthGroup);
+
+      // Axial tilt: about 23.5 degrees relative to its orbital plane
+      const axialTiltRad = THREE.MathUtils.degToRad(23.5);
+      earthGroup.rotation.z = axialTiltRad;
+
+      // Load Textures
+      const loader = new THREE.TextureLoader();
+      const tex = {
+        color: loader.load('https://threejs.org/examples/textures/planets/earth_atmos_2048.jpg'),
+        spec: loader.load('https://threejs.org/examples/textures/planets/earth_specular_2048.jpg'),
+        normal: loader.load('https://threejs.org/examples/textures/planets/earth_normal_2048.jpg'),
+        clouds: loader.load('https://threejs.org/examples/textures/planets/earth_clouds_1024.png')
+      };
+      [tex.color, tex.spec, tex.normal, tex.clouds].forEach(t => {
+        t.colorSpace = THREE.SRGBColorSpace;
+        t.anisotropy = Math.min(renderer.capabilities.getMaxAnisotropy?.() || 8, 8);
+      });
+      tex.normal.colorSpace = THREE.NoColorSpace;
+      tex.spec.colorSpace = THREE.NoColorSpace;
+
+      // Earth Mesh
+      const radius = 2;
+      const segments = 96;
+
+      const earthGeo = new THREE.SphereGeometry(radius, segments, segments);
+      const earthMat = new THREE.MeshPhongMaterial({
+        map: tex.color,
+        specularMap: tex.spec,
+        specular: new THREE.Color(0x333333),
+        shininess: 12,
+        normalMap: tex.normal,
+        normalScale: new THREE.Vector2(0.7, 0.7)
+      });
+      const earthMesh = new THREE.Mesh(earthGeo, earthMat);
+      earthGroup.add(earthMesh);
+
+      // Cloud layer
+      const cloudsGeo = new THREE.SphereGeometry(radius * 1.008, segments, segments);
+      const cloudsMat = new THREE.MeshLambertMaterial({
+        map: tex.clouds,
+        transparent: true,
+        opacity: 0.9,
+        depthWrite: false
+      });
+      const cloudsMesh = new THREE.Mesh(cloudsGeo, cloudsMat);
+      earthGroup.add(cloudsMesh);
+
+      // Subtle atmosphere glow (fake)
+      const atmosphereGeo = new THREE.SphereGeometry(radius * 1.02, 64, 64);
+      const atmosphereMat = new THREE.MeshBasicMaterial({
+        color: 0x4aa4ff,
+        transparent: true,
+        opacity: 0.08,
+        blending: THREE.AdditiveBlending,
+        side: THREE.BackSide
+      });
+      const atmosphere = new THREE.Mesh(atmosphereGeo, atmosphereMat);
+      earthGroup.add(atmosphere);
+
+      // UI controls
+      const speedSlider = document.getElementById('speed');
+      const speedVal = document.getElementById('speedVal');
+      const toggleBtn = document.getElementById('toggle');
+      const resetBtn = document.getElementById('resetView');
+
+      // Rotation speed: base near real-time, but visibly faster.
+      // One full rotation every ~24 seconds at 1.0x for demonstration.
+      const TWO_PI = Math.PI * 2;
+      const baseRotationPeriodSeconds = 24; // demo value
+      const baseRadPerSec = TWO_PI / baseRotationPeriodSeconds;
+
+      let speedFactor = parseFloat(speedSlider.value);
+      let running = true;
+
+      function updateSpeedLabel() {
+        speedVal.textContent = speedFactor.toFixed(1) + 'x';
+        speedVal.style.background = speedFactor === 0 ? 'rgba(255,96,96,0.15)' : 'rgba(108,184,255,0.15)';
+        speedVal.style.color = speedFactor === 0 ? '#ffd1d1' : '#bfe0ff';
+      }
+      updateSpeedLabel();
+
+      speedSlider.addEventListener('input', (e) => {
+        speedFactor = parseFloat(e.target.value);
+        updateSpeedLabel();
+      });
+
+      toggleBtn.addEventListener('click', () => {
+        running = !running;
+        toggleBtn.textContent = running ? 'Pause' : 'Resume';
+      });
+
+      resetBtn.addEventListener('click', () => {
+        controls.reset();
+        camera.position.set(0, 1.2, 6);
+      });
+
+      // Animation
+      let lastT = performance.now();
+      function animate(now) {
+        requestAnimationFrame(animate);
+        const dt = Math.min(0.05, (now - lastT) / 1000);
+        lastT = now;
+
+        if (running) {
+          const rot = baseRadPerSec * speedFactor * dt;
+          earthMesh.rotation.y += rot;     // Earth rotation
+          cloudsMesh.rotation.y += rot * 1.2; // Winds/cloud drift faster for effect
+        }
+
+        controls.update();
+        renderer.render(scene, camera);
+      }
+      requestAnimationFrame(animate);
+
+      // Resize
+      window.addEventListener('resize', () => {
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        renderer.setSize(w, h);
+        camera.aspect = w / h;
+        camera.updateProjectionMatrix();
+      });
+
+      // Handle WebGL context lost
+      renderer.domElement.addEventListener('webglcontextlost', (event) => {
+        event.preventDefault();
+        alert('WebGL context lost. Please reload the page.');
+      }, false);
+    })();
+  </script>
+</body>
+</html>
